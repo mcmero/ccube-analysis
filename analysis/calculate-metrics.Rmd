@@ -1,0 +1,281 @@
+---
+title: "Calculate metrics for in-silico mixtures"
+output:
+  workflowr::wflow_html:
+      code_folding: hide
+---
+
+
+```{r knitr, include = FALSE}
+DOCNAME = "calculate-metrics"
+knitr::opts_chunk$set(autodep        = TRUE,
+                      cache          = FALSE,
+                      cache.path     = paste0("cache/", DOCNAME, "/"),
+                      cache.comments = FALSE,
+                      echo           = TRUE,
+                      error          = FALSE,
+                      fig.align      = "center",
+                      fig.width      = 18,
+                      fig.height     = 12,
+                      dev            = c("png", "pdf"),
+                      message        = FALSE,
+                      warning        = FALSE)
+```
+
+```{r libraries, cache = FALSE}
+library(ggplot2)
+library(data.table)
+library(dplyr)
+library(ccube)
+library(yaml)
+library(here)
+```
+
+
+```{r options}
+options(stringsAsFactors = FALSE)
+```
+
+
+```{r source}
+source(here::here('code', 'metrics_funcs.R'))
+source(here::here('code', 'util.R'))
+source(here::here('code', 'load.R'))
+```
+
+
+```{r funcs_and_vars}
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length=n+1)
+  hcl(h=hues, l=65, c=100)[1:n]
+}
+myColors <- gg_color_hue(10)
+
+cutoff_snvs <- cutoff_svs <- subclonal_cutoff <- 0.7
+cutoff_cna <-  0.943
+
+wd_truth <- here::here('data', '001_truth/')
+snv_folder <- here::here('data', 'ccube')
+pyc_folder <- here::here('data', 'pyclone')
+```
+
+
+```{r load_data}
+# load ccube data
+snv_data <- NULL
+replicates <- list.files(snv_folder, pattern='[0-9]{4}_[0-9]{4}')
+for(replicate in replicates) {
+    for(i in seq(0.1, 0.9, 0.1)) {
+        mix <- paste(i, 1-i, sep='-')
+        basename <- paste('001bM', i, '001gM', 1-i, sep='_')
+
+        results_folder <- file.path(snv_folder, replicate, basename)
+        ccubeResultRDataFile <- paste0(results_folder, '/ccube_out/snvs/', basename, '_ccube_snv_results.RData')
+        load(ccubeResultRDataFile)
+    
+        snvs <- data.frame(data='snvs', snvRes$ssm, sv=snvRes$ssm$mutation_id, mix=mix, p1=i, p2=1-i)
+        snvs <- attach_001_ground_truth_snvs(wd_truth, snvs)
+        snvs$replicate <- replicate
+    
+        snvin <- read.delim(paste0(results_folder, '/', basename, '_filtered_snvs.tsv'))
+        snvin$mutation_id <- paste(snvin$chrom, snvin$pos, sep='_')
+        snvs <- inner_join(snvs, snvin[,c('mutation_id', 'gtype')], by='mutation_id')
+    
+        snvs$true_ccf <- 1
+        snvs[snvs$sample%in%'bM_only','true_ccf'] <- i
+        snvs[snvs$sample%in%'gM_only','true_ccf'] <- 1-i
+    
+        snvs$adjusted_support <- snvs$var_counts
+        snvs$adjusted_depth <- snvs$var_counts + snvs$ref_counts
+    
+        snvs$norm_cn <- snvs$normal_cn
+        x <- t(data.frame(apply(snvs, 1, get_true_sc_cn)))
+        snvs$true_cn <- x[,1]; snvs$wtotal_cn <- x[,2]
+        snvs$pv <- x[,3]; snvs$best_ccf <- x[,4]
+        
+        snv_data <- rbind(snv_data, snvs)
+    }
+}
+
+clus_filter_min <- 0.01 # filter out pyclone clusters lower than this fraction
+pyc_data <- NULL
+for(replicate in replicates) {
+    for(i in seq(0.1, 0.9, 0.1)) {
+        # print(paste(replicate, i))
+        mix <- paste(i, 1-i, sep='-')
+        basename <- paste('001bM', i, '001gM', 1-i, sep='_')
+        results_folder <- file.path(pyc_folder, replicate, basename)
+    
+        # get purity from config file        
+        config_file <- file.path(results_folder, 'config.yaml')
+        if (!file.exists(config_file)) {
+            print(paste(config_file, 'does not exist!'))
+            next
+        }
+        
+        sample_values <- read_yaml(config_file)$samples
+        sample_values <- sample_values[[paste0(basename, '_pyclone_input')]]
+        pur <- sample_values$tumour_content$value
+        
+        # load pyclone results
+        # pyc <- read.delim(paste0(results_folder, '/pyclone_results.tsv'), sep = "\t")
+        pyc <- read.delim(paste0(results_folder, '/loci.tsv'), sep = "\t")
+        pyc_clus <- read.delim(paste0(results_folder, '/cluster.tsv'), sep = "\t")
+        pyc_clus <- pyc_clus[(pyc_clus$size / sum(pyc_clus$size)) > clus_filter_min,]
+        
+        pyc <- inner_join(pyc, pyc_clus, on = c('cluster_id', 'sample_id'))
+        pyc$purity <- pur; pyc$ccf <- pyc$cellular_prevalence; pyc$average_ccf <- pyc$mean
+        pyc$replicate <- replicate
+        
+        # get pyclone input file
+        sample_tsv_file <- file.path(pyc_folder, replicate, paste0(basename, "_pyclone_input.txt"))
+        sample_tsv <- read.delim(sample_tsv_file, stringsAsFactors = F)
+        sample_tsv <- mutate(sample_tsv, vaf = var_counts / (ref_counts + var_counts))
+        
+        # build results df, calculate multiplicity
+        pyc <- left_join(pyc, sample_tsv, by = "mutation_id") %>%
+                    dplyr::filter(., !is.na(average_ccf)) %>%
+                    dplyr::mutate(.,
+                        multiplicity = GetMultFromCcf(bn = var_counts,
+                                                      dn = var_counts + ref_counts,
+                                                      ccf = ccf,
+                                                      major_cn = major_cn,
+                                                      minor_cn = minor_cn,
+                                                      purity = purity)) %>%
+                        suppressWarnings()
+
+        tmp1 <- as.data.frame(table(pyc$cluster_id), stringsAsFactors = F)
+        tmp2 <- as.data.frame(table(pyc$average_ccf), stringsAsFactors = F)
+        tmp <- left_join(tmp1, tmp2, by ="Freq")
+        colnames(tmp) <- c('cluster_id', 'n_ssms', 'cluster_ccf')
+        pyc <- merge(pyc, tmp, by='cluster_id')
+    
+        pyc$sv <- pyc$mutation_id; pyc$true_ccf <- 1
+        pyc <- attach_001_ground_truth_snvs(wd_truth, pyc)
+        pyc[pyc$sample%in%'bM_only', 'true_ccf'] <- i
+        pyc[pyc$sample%in%'gM_only', 'true_ccf'] <- 1 - i
+    
+        pyc$norm_cn <- pyc$normal_cn
+        pyc$gtype <- paste(pyc$major_cn, pyc$minor_cn, 1, sep=',')
+        pyc$adjusted_support <- pyc$var_counts
+        pyc$adjusted_depth <- pyc$var_counts + pyc$ref_counts
+    
+        x <- t(data.frame(apply(pyc, 1, get_true_sc_cn)))
+        pyc$true_cn <- x[,1]
+        pyc$wtotal_cn <- x[,2]
+        pyc$pv <- x[,3]
+        pyc$best_ccf <- x[,4]
+    
+        pyc$best_guess_subclonal <- pyc$best_ccf < subclonal_cutoff
+        pyc$pyc_guess_subclonal <- pyc$ccf < subclonal_cutoff
+    
+        pyc$mix <- mix
+        pyc_data <- rbind(pyc_data, pyc)
+    }
+}
+```
+
+
+```{r make_metrics}
+metrics <- NULL
+for (replicate in replicates) {
+    for(p1 in seq(0.1,0.9,0.1)) {
+        p2 <- 1 - p1
+        minor <- min(p1, p2)
+        major <- max(p1, p2)
+        mix <- paste(p1, p2, sep='-')
+        
+        mix_rep_run_cc <- snv_data[snv_data$mix%in%mix & snv_data$replicate%in%replicate, ]
+        x <- calc_metrics_3clus(mix_rep_run_cc, mix, 'ccube', type='snv')
+        
+        mix_rep_run_pyc <- pyc_data[pyc_data$mix%in%mix & pyc_data$replicate%in%replicate, ]
+        x <- rbind(x, calc_metrics_3clus(mix_rep_run_pyc, mix, 'pyclone', type='pyc'))
+        
+        x$replicate <- replicate
+        metrics <- rbind(metrics, x)
+    }
+}
+
+```
+
+## Clustering metrics
+
+```{r plot_metrics}
+mm <- melt(metrics)
+mm$variable <- as.character(mm$variable)
+mm[mm$variable%like%'mean_mult_error',]$variable <- 'mean multiplicity error'
+mm[mm$variable%like%'mean_ccf',]$variable <- 'mean variant CCF error'
+mm[mm$variable%like%'sens',]$variable <- 'is subclonal sensitivity'
+mm[mm$variable%like%'spec',]$variable <- 'is subclonal specificity'
+mm[mm$variable%like%'clus_ccf',]$variable <- 'mean cluster CCF error'
+mm[mm$variable%like%'clus_num',]$variable <- 'cluster number error'
+
+mixes <- sapply(mm$mix[grep('-',mm$mix)],
+                function(x){mix <- strsplit(x, '-')[[1]];
+                   paste(as.numeric(mix[1])*100, as.numeric(mix[2])*100, sep='-') })
+mm$mix[grep('-',mm$mix)] <- as.character(mixes)
+mm$mix <- factor(mm$mix, levels=c('10-90', '20-80', '30-70', '40-60', '50-50',
+                                  '60-40', '70-30', '80-20', '90-10', '4clus', '5clus'))
+
+# cols <- brewer.pal(length(unique(mm$replicate)), 'RdBu')
+# names(cols) <- unique(mm$replicate)
+
+mm$id <- paste(mm$method, mm$replicate)
+
+g1 <- ggplot(mm[mm$variable%like%'cluster num',], aes(mix, value, group=id, colour=method)) +
+        geom_line() + geom_point() + theme_bw() + ylim(-3, 3) +
+        geom_hline(yintercept=0, colour='grey') + ylab('true - estimated cluster number') + xlab('') +
+        theme(legend.position='bottom', axis.text.x = element_text(size=7))
+        # scale_colour_manual(values = cols)
+g2 <- ggplot(mm[mm$variable%like%'cluster CCF',], aes(mix, value, group=id, colour=method)) +
+        geom_line() + geom_point() + theme_bw() + ylim(-0.5, 0.5) +
+        geom_hline(yintercept=0, colour='grey') + ylab('true - estimated cluster CCF') + xlab('') +
+        theme(legend.position='bottom', axis.text.x = element_text(size=7))
+        # scale_colour_manual(values = cols)
+g3 <- ggplot(mm[mm$variable%like%'mean var',], aes(mix, value, group=id, colour=method)) +
+        geom_line() + geom_point() + facet_grid(~variable) + theme_bw() + ylim(-0.5, 0.5) +
+        geom_hline(yintercept=0, colour='grey') + ylab('true - estimated CCF') + xlab('') +
+        theme(legend.position='bottom', axis.text.x = element_text(size=7))
+        # scale_colour_manual(values = cols)
+g4 <- ggplot(mm[mm$variable%like%'mult',], aes(mix, value, group=id, colour=method)) +
+        geom_line() + geom_point() + facet_grid(~variable) + theme_bw() + ylim(-0.5, 0.5) +
+        geom_hline(yintercept=0, colour='grey') + ylab('optimal - estimated multiplicity') + xlab('') +
+        theme(legend.position='bottom', axis.text.x = element_text(size=7))
+        # scale_colour_manual(values = cols)
+g5 <- ggplot(mm[mm$variable%like%'sens',], aes(mix, value, group=id, colour=method)) +
+        geom_line() + geom_point() + facet_grid(~variable) + theme_bw() + ylim(0,1) +
+        ylab('sensitivity') + xlab('') +
+        theme(legend.position='bottom', axis.text.x = element_text(size=7))
+        # scale_colour_manual(values = cols)
+g6 <- ggplot(mm[mm$variable%like%'spec',], aes(mix, value, group=id, colour=method)) +
+        geom_line() + geom_point() + facet_grid(~variable) + theme_bw() + ylim(0,1) +
+        ylab('specificity') + xlab('') +
+        theme(legend.position='bottom', axis.text.x = element_text(size=7))
+        # scale_colour_manual(values = cols)
+
+grid.arrange(g1, g3, g5,
+             g2, g4, g6, ncol=3)
+```
+
+# Performance metrics
+
+```{r, fig.width=9, fig.height=8}
+pstats <- rbind(collate_performance_stats(snv_folder, 'ccube'),
+                collate_performance_stats(pyc_folder, 'pyclone'))
+pstats$id <- paste(pstats$method, pstats$replicate)
+pstats$seconds <- as.numeric(pstats$seconds)
+pstats$mem <- as.numeric(pstats$mem)
+
+ggplot(pstats, aes(sample, seconds, group=id, colour=method)) +
+    geom_line() +
+    geom_point() +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90)) 
+
+ggplot(pstats, aes(sample, mem, group=id, colour=method)) +
+    geom_line() +
+    geom_point() +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90)) 
+```
+
