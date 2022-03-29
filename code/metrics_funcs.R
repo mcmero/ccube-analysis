@@ -138,6 +138,13 @@ calc_metrics_3clus <- function(x, mix, method, type='sv') {
         clus_ccf_error <- get_clus_ccf_error(x$cluster_ccf, c(1, major, minor))
         is_subclonal_truth <- x$true_ccf < 1
         is_subclonal <- x$ccf < cutoff_snvs
+    } else if(type=='pvi') {
+        mean_mult_error <- NA
+        mean_ccf_error <- NA
+        clus_num_error <- 3 - length(unique(x$cluster_ccf))
+        clus_ccf_error <- get_clus_ccf_error(x$cluster_ccf, c(1, major, minor))
+        is_subclonal_truth <- x$true_ccf < 1
+        is_subclonal <- x$cellular_prevalence < cutoff_snvs
     } else if(type=='sv') {
         x$mean_ccf <- apply(data.frame(ccf1=x$ccube_ccf1, ccf2=x$ccube_ccf2), 1, mean)
         mean_mult_error <- mean(c(x$true_cn1-x$ccube_mult1, x$true_cn2-x$ccube_mult1))

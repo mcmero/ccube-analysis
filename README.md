@@ -1,5 +1,3 @@
-# ccube-code
+# ccube analysis
 
-A [workflowr][] project.
-
-[workflowr]: https://github.com/jdblischak/workflowr
+Analyses and plots for the ccube subclonal clustering algorithm.

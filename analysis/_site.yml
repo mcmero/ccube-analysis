@@ -1,7 +1,7 @@
-name: "ccube-code"
+name: "ccube-analysis"
 output_dir: ../docs
 navbar:
-  title: "ccube-code"
+  title: "ccube-analysis"
   left:
   - text: Home
     href: index.html
