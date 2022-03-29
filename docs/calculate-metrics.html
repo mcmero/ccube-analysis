@@ -327,7 +327,7 @@ div.tocify {
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="index.html">ccube-code</a>
+      <a class="navbar-brand" href="index.html">ccube-analysis</a>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
@@ -385,7 +385,7 @@ div.tocify {
 <div class="tab-content">
 <div id="summary" class="tab-pane fade in active">
 <p>
-<strong>Last updated:</strong> 2022-03-28
+<strong>Last updated:</strong> 2022-03-29
 </p>
 <p>
 <strong>Checks:</strong> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7 <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> 0
@@ -476,16 +476,16 @@ This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a> analysis
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrong2aaffee"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> 2aaffee </a>
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommcmeroccubeanalysistree2cd656c7855bea42ad59a4b6e346a38f347d60e0targetblank2cd656ca"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mcmero/ccube-analysis/tree/2cd656c7855bea42ad59a4b6e346a38f347d60e0" target="_blank">2cd656c</a> </a>
 </p>
 </div>
-<div id="strongRepositoryversionstrong2aaffee" class="panel-collapse collapse">
+<div id="strongRepositoryversionstrongahrefhttpsgithubcommcmeroccubeanalysistree2cd656c7855bea42ad59a4b6e346a38f347d60e0targetblank2cd656ca" class="panel-collapse collapse">
 <div class="panel-body">
 <p>
 Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
 </p>
 <p>
-The results in this page were generated with repository version 2aaffee. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+The results in this page were generated with repository version <a href="https://github.com/mcmero/ccube-analysis/tree/2cd656c7855bea42ad59a4b6e346a38f347d60e0" target="_blank">2cd656c</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
 </p>
 <p>
 Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
@@ -499,10 +499,12 @@ Ignored files:
 Untracked files:
     Untracked:  ._.DS_Store
     Untracked:  ._calculate-metrics.html
-    Untracked:  .here
-    Untracked:  code/
     Untracked:  data/
-    Untracked:  scripts/
+
+Unstaged changes:
+    Modified:   README.md
+    Modified:   analysis/_site.yml
+    Modified:   code/metrics_funcs.R
 
 </code></pre>
 <p>
@@ -546,7 +548,41 @@ Message
 Rmd
 </td>
 <td>
-2aaffee
+<a href="https://github.com/mcmero/ccube-analysis/blob/2cd656c7855bea42ad59a4b6e346a38f347d60e0/analysis/calculate-metrics.Rmd" target="_blank">2cd656c</a>
+</td>
+<td>
+Marek Cmero
+</td>
+<td>
+2022-03-29
+</td>
+<td>
+Added PyClone-VI results
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/mcmero/ccube-analysis/050a788edcd1f5108517c3ecb6fdf816ae2af8f4/docs/calculate-metrics.html" target="_blank">050a788</a>
+</td>
+<td>
+Marek Cmero
+</td>
+<td>
+2022-03-28
+</td>
+<td>
+Build site.
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mcmero/ccube-analysis/blob/2aaffee410dce95b81a0240fb1f4fef6e352510e/analysis/calculate-metrics.Rmd" target="_blank">2aaffee</a>
 </td>
 <td>
 Marek Cmero
@@ -586,7 +622,8 @@ cutoff_cna &lt;-  0.943
 
 wd_truth &lt;- here::here(&#39;data&#39;, &#39;001_truth/&#39;)
 snv_folder &lt;- here::here(&#39;data&#39;, &#39;ccube&#39;)
-pyc_folder &lt;- here::here(&#39;data&#39;, &#39;pyclone&#39;)</code></pre>
+pyc_folder &lt;- here::here(&#39;data&#39;, &#39;pyclone&#39;)
+pvi_folder &lt;- here::here(&#39;data&#39;, &#39;pyclone-vi&#39;)</code></pre>
 <pre class="r"><code># load ccube data
 snv_data &lt;- NULL
 replicates &lt;- list.files(snv_folder, pattern=&#39;[0-9]{4}_[0-9]{4}&#39;)
@@ -596,7 +633,10 @@ for(replicate in replicates) {
         basename &lt;- paste(&#39;001bM&#39;, i, &#39;001gM&#39;, 1-i, sep=&#39;_&#39;)
 
         results_folder &lt;- file.path(snv_folder, replicate, basename)
-        ccubeResultRDataFile &lt;- paste0(results_folder, &#39;/ccube_out/snvs/&#39;, basename, &#39;_ccube_snv_results.RData&#39;)
+        ccubeResultRDataFile &lt;- paste0(results_folder,
+                                       &#39;/ccube_out/snvs/&#39;,
+                                       basename,
+                                       &#39;_ccube_snv_results.RData&#39;)
         load(ccubeResultRDataFile)
     
         snvs &lt;- data.frame(data=&#39;snvs&#39;, snvRes$ssm, sv=snvRes$ssm$mutation_id, mix=mix, p1=i, p2=1-i)
@@ -698,6 +738,52 @@ for(replicate in replicates) {
         pyc$mix &lt;- mix
         pyc_data &lt;- rbind(pyc_data, pyc)
     }
+}
+
+# load pyclone-vi data
+pvi_data &lt;- NULL
+for(replicate in replicates) {
+    for(i in seq(0.1, 0.9, 0.1)) {
+        # print(paste(replicate, i))
+        mix &lt;- paste(i, 1-i, sep=&#39;-&#39;)
+        basename &lt;- paste(&#39;001bM&#39;, i, &#39;001gM&#39;, 1-i, sep=&#39;_&#39;)
+        results_folder &lt;- file.path(pvi_folder, replicate)
+        results_prefix &lt;- file.path(results_folder, basename)
+        
+        pvi_input &lt;- read.delim(paste0(results_prefix,
+                                           &#39;_pyclone_input.txt&#39;), sep = &#39;\t&#39;)
+        pvi &lt;- read.delim(paste0(results_prefix, &#39;_results.tsv&#39;), sep = &quot;\t&quot;)
+        pvi &lt;- inner_join(pvi, pvi_input, by=c(&#39;sample_id&#39;, &#39;mutation_id&#39;))
+
+        pvi$replicate &lt;- replicate
+        pvi$cluster_ccf &lt;- pvi$cellular_prevalence
+        pvi$norm_cn &lt;- pvi$normal_cn
+        pvi$purity &lt;- pvi$tumour_content
+        
+        clusters &lt;- data.table(pvi)[, list(n_ssms=length(mutation_id)), by=&#39;cluster_id&#39;]
+        pvi &lt;- left_join(pvi, clusters, by = &#39;cluster_id&#39;)
+    
+        pvi$sv &lt;- pvi$mutation_id; pvi$true_ccf &lt;- 1
+        pvi &lt;- attach_001_ground_truth_snvs(wd_truth, pvi)
+        pvi[pvi$sample%in%&#39;bM_only&#39;, &#39;true_ccf&#39;] &lt;- i
+        pvi[pvi$sample%in%&#39;gM_only&#39;, &#39;true_ccf&#39;] &lt;- 1 - i
+        
+        pvi$gtype &lt;- paste(pvi$major_cn, pvi$minor_cn, 1, sep=&#39;,&#39;)
+        pvi$adjusted_support &lt;- pvi$alt_counts
+        pvi$adjusted_depth &lt;- pvi$alt_counts + pvi$ref_counts
+    
+        x &lt;- t(data.frame(apply(pvi, 1, get_true_sc_cn)))
+        pvi$true_cn &lt;- x[,1]
+        pvi$wtotal_cn &lt;- x[,2]
+        pvi$pv &lt;- x[,3]
+        pvi$best_ccf &lt;- x[,4]
+    
+        pvi$best_guess_subclonal &lt;- pvi$best_ccf &lt; subclonal_cutoff
+        pvi$pvi_guess_subclonal &lt;- pvi$cellular_prevalence &lt; subclonal_cutoff
+    
+        pvi$mix &lt;- mix
+        pvi_data &lt;- rbind(pvi_data, pvi)
+    }
 }</code></pre>
 <pre class="r"><code>metrics &lt;- NULL
 for (replicate in replicates) {
@@ -712,6 +798,9 @@ for (replicate in replicates) {
         
         mix_rep_run_pyc &lt;- pyc_data[pyc_data$mix%in%mix &amp; pyc_data$replicate%in%replicate, ]
         x &lt;- rbind(x, calc_metrics_3clus(mix_rep_run_pyc, mix, &#39;pyclone&#39;, type=&#39;pyc&#39;))
+        
+        mix_rep_run_pvi &lt;- pvi_data[pvi_data$mix%in%mix &amp; pvi_data$replicate%in%replicate, ]
+        x &lt;- rbind(x, calc_metrics_3clus(mix_rep_run_pvi, mix, &#39;pyclone-vi&#39;, type=&#39;pvi&#39;))
         
         x$replicate &lt;- replicate
         metrics &lt;- rbind(metrics, x)
@@ -774,11 +863,49 @@ g6 &lt;- ggplot(mm[mm$variable%like%&#39;spec&#39;,], aes(mix, value, group=id, 
 grid.arrange(g1, g3, g5,
              g2, g4, g6, ncol=3)</code></pre>
 <p><img src="figure/calculate-metrics.Rmd/plot_metrics-1.png" width="1728" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-plot_metrics-1">
+Past versions of plot_metrics-1.png
+</button>
+</p>
+<div id="fig-plot_metrics-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/mcmero/ccube-analysis/blob/050a788edcd1f5108517c3ecb6fdf816ae2af8f4/docs/figure/calculate-metrics.Rmd/plot_metrics-1.png" target="_blank">050a788</a>
+</td>
+<td>
+Marek Cmero
+</td>
+<td>
+2022-03-28
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 </div>
 <div id="performance-metrics" class="section level1">
 <h1>Performance metrics</h1>
 <pre class="r"><code>pstats &lt;- rbind(collate_performance_stats(snv_folder, &#39;ccube&#39;),
-                collate_performance_stats(pyc_folder, &#39;pyclone&#39;))
+                collate_performance_stats(pyc_folder, &#39;pyclone&#39;),
+                collate_performance_stats(pvi_folder, &#39;pyclone-vi&#39;))
 pstats$id &lt;- paste(pstats$method, pstats$replicate)
 pstats$seconds &lt;- as.numeric(pstats$seconds)
 pstats$mem &lt;- as.numeric(pstats$mem)
@@ -789,12 +916,86 @@ ggplot(pstats, aes(sample, seconds, group=id, colour=method)) +
     theme_bw() +
     theme(axis.text.x = element_text(angle = 90)) </code></pre>
 <p><img src="figure/calculate-metrics.Rmd/unnamed-chunk-1-1.png" width="864" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-unnamed-chunk-1-1">
+Past versions of unnamed-chunk-1-1.png
+</button>
+</p>
+<div id="fig-unnamed-chunk-1-1" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/mcmero/ccube-analysis/blob/050a788edcd1f5108517c3ecb6fdf816ae2af8f4/docs/figure/calculate-metrics.Rmd/unnamed-chunk-1-1.png" target="_blank">050a788</a>
+</td>
+<td>
+Marek Cmero
+</td>
+<td>
+2022-03-28
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <pre class="r"><code>ggplot(pstats, aes(sample, mem, group=id, colour=method)) +
     geom_line() +
     geom_point() +
     theme_bw() +
     theme(axis.text.x = element_text(angle = 90)) </code></pre>
 <p><img src="figure/calculate-metrics.Rmd/unnamed-chunk-1-2.png" width="864" style="display: block; margin: auto;" /></p>
+<p>
+<button type="button" class="btn btn-default btn-xs btn-workflowr btn-workflowr-fig" data-toggle="collapse" data-target="#fig-unnamed-chunk-1-2">
+Past versions of unnamed-chunk-1-2.png
+</button>
+</p>
+<div id="fig-unnamed-chunk-1-2" class="collapse">
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<a href="https://github.com/mcmero/ccube-analysis/blob/050a788edcd1f5108517c3ecb6fdf816ae2af8f4/docs/figure/calculate-metrics.Rmd/unnamed-chunk-1-2.png" target="_blank">050a788</a>
+</td>
+<td>
+Marek Cmero
+</td>
+<td>
+2022-03-28
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <br>
 <p>
 <button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
