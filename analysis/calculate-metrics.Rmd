@@ -57,6 +57,7 @@ cutoff_cna <-  0.943
 wd_truth <- here::here('data', '001_truth/')
 snv_folder <- here::here('data', 'ccube')
 pyc_folder <- here::here('data', 'pyclone')
+pvi_folder <- here::here('data', 'pyclone-vi')
 ```
 
 
@@ -70,7 +71,10 @@ for(replicate in replicates) {
         basename <- paste('001bM', i, '001gM', 1-i, sep='_')
 
         results_folder <- file.path(snv_folder, replicate, basename)
-        ccubeResultRDataFile <- paste0(results_folder, '/ccube_out/snvs/', basename, '_ccube_snv_results.RData')
+        ccubeResultRDataFile <- paste0(results_folder,
+                                       '/ccube_out/snvs/',
+                                       basename,
+                                       '_ccube_snv_results.RData')
         load(ccubeResultRDataFile)
     
         snvs <- data.frame(data='snvs', snvRes$ssm, sv=snvRes$ssm$mutation_id, mix=mix, p1=i, p2=1-i)
@@ -173,6 +177,52 @@ for(replicate in replicates) {
         pyc_data <- rbind(pyc_data, pyc)
     }
 }
+
+# load pyclone-vi data
+pvi_data <- NULL
+for(replicate in replicates) {
+    for(i in seq(0.1, 0.9, 0.1)) {
+        # print(paste(replicate, i))
+        mix <- paste(i, 1-i, sep='-')
+        basename <- paste('001bM', i, '001gM', 1-i, sep='_')
+        results_folder <- file.path(pvi_folder, replicate)
+        results_prefix <- file.path(results_folder, basename)
+        
+        pvi_input <- read.delim(paste0(results_prefix,
+                                           '_pyclone_input.txt'), sep = '\t')
+        pvi <- read.delim(paste0(results_prefix, '_results.tsv'), sep = "\t")
+        pvi <- inner_join(pvi, pvi_input, by=c('sample_id', 'mutation_id'))
+
+        pvi$replicate <- replicate
+        pvi$cluster_ccf <- pvi$cellular_prevalence
+        pvi$norm_cn <- pvi$normal_cn
+        pvi$purity <- pvi$tumour_content
+        
+        clusters <- data.table(pvi)[, list(n_ssms=length(mutation_id)), by='cluster_id']
+        pvi <- left_join(pvi, clusters, by = 'cluster_id')
+    
+        pvi$sv <- pvi$mutation_id; pvi$true_ccf <- 1
+        pvi <- attach_001_ground_truth_snvs(wd_truth, pvi)
+        pvi[pvi$sample%in%'bM_only', 'true_ccf'] <- i
+        pvi[pvi$sample%in%'gM_only', 'true_ccf'] <- 1 - i
+        
+        pvi$gtype <- paste(pvi$major_cn, pvi$minor_cn, 1, sep=',')
+        pvi$adjusted_support <- pvi$alt_counts
+        pvi$adjusted_depth <- pvi$alt_counts + pvi$ref_counts
+    
+        x <- t(data.frame(apply(pvi, 1, get_true_sc_cn)))
+        pvi$true_cn <- x[,1]
+        pvi$wtotal_cn <- x[,2]
+        pvi$pv <- x[,3]
+        pvi$best_ccf <- x[,4]
+    
+        pvi$best_guess_subclonal <- pvi$best_ccf < subclonal_cutoff
+        pvi$pvi_guess_subclonal <- pvi$cellular_prevalence < subclonal_cutoff
+    
+        pvi$mix <- mix
+        pvi_data <- rbind(pvi_data, pvi)
+    }
+}
 ```
 
 
@@ -190,6 +240,9 @@ for (replicate in replicates) {
         
         mix_rep_run_pyc <- pyc_data[pyc_data$mix%in%mix & pyc_data$replicate%in%replicate, ]
         x <- rbind(x, calc_metrics_3clus(mix_rep_run_pyc, mix, 'pyclone', type='pyc'))
+        
+        mix_rep_run_pvi <- pvi_data[pvi_data$mix%in%mix & pvi_data$replicate%in%replicate, ]
+        x <- rbind(x, calc_metrics_3clus(mix_rep_run_pvi, mix, 'pyclone-vi', type='pvi'))
         
         x$replicate <- replicate
         metrics <- rbind(metrics, x)
@@ -261,7 +314,8 @@ grid.arrange(g1, g3, g5,
 
 ```{r, fig.width=9, fig.height=8}
 pstats <- rbind(collate_performance_stats(snv_folder, 'ccube'),
-                collate_performance_stats(pyc_folder, 'pyclone'))
+                collate_performance_stats(pyc_folder, 'pyclone'),
+                collate_performance_stats(pvi_folder, 'pyclone-vi'))
 pstats$id <- paste(pstats$method, pstats$replicate)
 pstats$seconds <- as.numeric(pstats$seconds)
 pstats$mem <- as.numeric(pstats$mem)
