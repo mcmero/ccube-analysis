@@ -10,10 +10,28 @@ def parse_args(args):
                         help='ccube input file path')
     parser.add_argument('titan_input',
                         help='titan SCNA input file (segments) path')
+    parser.add_argument('output_type',
+                        choices=['pyclone', 'dpclust'],
+                        help='Which clustering software we are creating input for.')
     parser.add_argument('outfile',
                         help='name for pyclone input file')
 
     return parser.parse_args(args)
+
+def estimate_ccf(vaf, p, cn, cr, cv, bv):
+    # translated from ccube's MapVaf2CcfPyClone
+    un, ur = 0, 0
+
+    if bv == cv:
+        uv = 1
+    elif bv == 0:
+        uv = 0
+    else:
+        uv = bv / cv
+    
+    ccf = ((1 - p) * cn * (un - vaf) + p * cr * (ur - vaf)) / (p * cr * (ur - vaf) - p * cv * (uv - vaf))
+
+    return ccf
 
 # from SVclone/load_data.py
 def load_titan(titan_file):
@@ -93,18 +111,48 @@ def main():
     titan = load_titan(titan_infile)
     df = match_snv_copy_numbers(ccube, titan)
 
-    pyclone_in = {
-        'mutation_id': df.mutation_id.values,
-        'ref_counts': df.ref_counts.map(int).values,
-        'var_counts': df.var_counts.map(int).values,
-        'normal_cn': 2,
-        'minor_cn': df.minor_cn_sub1.map(int).values,
-        'major_cn': df.major_cn_sub1.map(int).values,
-    }
+    if args.output_type == 'pyclone':
+        pyclone_in = {
+            'mutation_id': df.mutation_id.values,
+            'ref_counts': df.ref_counts.map(int).values,
+            'var_counts': df.var_counts.map(int).values,
+            'normal_cn': 2,
+            'minor_cn': df.minor_cn_sub1.map(int).values,
+            'major_cn': df.major_cn_sub1.map(int).values,
+        }
 
-    pyclone_in = pd.DataFrame.from_dict(pyclone_in)
-    pyclone_in = pyclone_in[pyclone_in.major_cn > 0]
-    pyclone_in.to_csv(outfile, index=False, sep='\t')
+        pyclone_in = pd.DataFrame.from_dict(pyclone_in)
+        pyclone_in = pyclone_in[pyclone_in.major_cn > 0]
+        pyclone_in.to_csv(outfile, index=False, sep='\t')
+
+    elif args.output_type == 'dpclust':
+
+        chrs = df.mutation_id.map(lambda x: str(x.split('_')[0]))
+        ends = df.mutation_id.map(lambda x: int(x.split('_')[1]))
+
+        wt_counts = df.ref_counts.map(int).values
+        mut_counts = df.var_counts.map(int).values
+        tcns = df.total_cn_sub1.map(int).values
+        vafs = df.vaf.map(float).values
+
+        p = df.purity.map(float).values[0]
+        ccfs = [estimate_ccf(v, p, 2, c, c, 1) for v, c in zip(vafs, tcns)]
+
+        dpclust_in = {
+            'chr': chrs,
+            'end': ends,
+            'WT.count': wt_counts,
+            'mut.count': mut_counts,
+            'subclonal.CN': tcns,
+            'mutation.copy.number': ccfs,
+            'subclonal.fraction': ccfs,
+            'no.chrs.bearing.mut': 1
+        }
+
+        dpclust_in = pd.DataFrame.from_dict(dpclust_in)
+        dpclust_in = dpclust_in[dpclust_in['subclonal.CN'] > 0]
+        dpclust_in.to_csv(outfile, index=False, sep='\t')
+            
 
 if __name__ == '__main__':
     main()

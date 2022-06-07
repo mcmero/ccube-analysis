@@ -134,7 +134,9 @@ calc_metrics_3clus <- function(x, mix, method, type='sv') {
     if(type=='pyc') {
         mean_mult_error <- mean(c(x$true_cn - x$multiplicity))
         mean_ccf_error <- mean(c(x$true_ccf - x$ccf))
-        clus_num_error <- 3 - length(unique(x$cluster_ccf))
+        clus <- unique(x$cluster_ccf)
+        clus <- clus[!is.na(clus)]
+        clus_num_error <- 3 - length(clus)
         clus_ccf_error <- get_clus_ccf_error(x$cluster_ccf, c(1, major, minor))
         is_subclonal_truth <- x$true_ccf < 1
         is_subclonal <- x$ccf < cutoff_snvs
@@ -173,10 +175,11 @@ calc_metrics_3clus <- function(x, mix, method, type='sv') {
 
 get_clus_ccf_error <- function(cms, truth) {
     # lowest ccf cluster = match with minor fraction
-    # highest ccf clsuter = match with clonal
+    # highest ccf cluster = match with clonal
     # average the ccfs of remaining clusters, match with major
     cm <- as.numeric(names(table(cms)))
     cm <- sort(cm, decreasing=T)
+    cm <- cm[cm < 2]
     truth <- sort(truth, decreasing=T)
     clus_ccf_error <- NULL
     for(i in 1:length(truth)) {
