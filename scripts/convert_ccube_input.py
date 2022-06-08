@@ -20,6 +20,8 @@ def parse_args(args):
 
 def estimate_ccf(vaf, p, cn, cr, cv, bv):
     # translated from ccube's MapVaf2CcfPyClone
+    # although similar, we'll use Dentro's calculate_ui
+    # divided by multiplicity instead
     un, ur = 0, 0
 
     if bv == cv:
@@ -32,6 +34,16 @@ def estimate_ccf(vaf, p, cn, cr, cv, bv):
     ccf = ((1 - p) * cn * (un - vaf) + p * cr * (ur - vaf)) / (p * cr * (ur - vaf) - p * cv * (uv - vaf))
 
     return ccf
+
+def calculate_ui(vaf, p, ct, cn):
+    # based on Dentro 2022 equation 4
+    ui = vaf * (1 / p) * (p * ct + cn * (1 - p))
+    return ui
+
+def estimate_mult(ui):
+    # based on Dentro 2022 equations 3
+    mult = round(ui) if ui >= 1 else 1
+    return mult
 
 # from SVclone/load_data.py
 def load_titan(titan_file):
@@ -136,7 +148,10 @@ def main():
         vafs = df.vaf.map(float).values
 
         p = df.purity.map(float).values[0]
-        ccfs = [estimate_ccf(v, p, 2, c, c, 1) for v, c in zip(vafs, tcns)]
+        uis = [calculate_ui(v, p, ct, 2) for v, ct in zip(vafs, tcns)]
+        mults = [int(estimate_mult(ui)) for ui in uis]
+        ccfs = np.array(uis) / np.array(mults)
+        #ccfs = [estimate_ccf(v, p, 2, ct, ct, m) for v, ct, m in zip(vafs, tcns, mults)]
 
         dpclust_in = {
             'chr': chrs,
@@ -144,9 +159,9 @@ def main():
             'WT.count': wt_counts,
             'mut.count': mut_counts,
             'subclonal.CN': tcns,
-            'mutation.copy.number': ccfs,
+            'mutation.copy.number': np.array(ccfs) * mults,
             'subclonal.fraction': ccfs,
-            'no.chrs.bearing.mut': 1
+            'no.chrs.bearing.mut': mults
         }
 
         dpclust_in = pd.DataFrame.from_dict(dpclust_in)
