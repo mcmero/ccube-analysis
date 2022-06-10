@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import sys
+import os
 from argparse import ArgumentParser
 
 def parse_args(args):
@@ -11,7 +12,7 @@ def parse_args(args):
     parser.add_argument('titan_input',
                         help='titan SCNA input file (segments) path')
     parser.add_argument('output_type',
-                        choices=['pyclone', 'dpclust'],
+                        choices=['pyclone', 'dpclust', 'sciclone'],
                         help='Which clustering software we are creating input for.')
     parser.add_argument('outfile',
                         help='name for pyclone input file')
@@ -21,7 +22,7 @@ def parse_args(args):
 def estimate_ccf(vaf, p, cn, cr, cv, bv):
     # translated from ccube's MapVaf2CcfPyClone
     # although similar, we'll use Dentro's calculate_ui
-    # divided by multiplicity instead
+    # divided by multiplicity instead for dpclust input
     un, ur = 0, 0
 
     if bv == cv:
@@ -30,7 +31,7 @@ def estimate_ccf(vaf, p, cn, cr, cv, bv):
         uv = 0
     else:
         uv = bv / cv
-    
+
     ccf = ((1 - p) * cn * (un - vaf) + p * cr * (ur - vaf)) / (p * cr * (ur - vaf) - p * cv * (uv - vaf))
 
     return ccf
@@ -48,7 +49,7 @@ def estimate_mult(ui):
 # from SVclone/load_data.py
 def load_titan(titan_file):
     cnv_df = pd.read_csv(titan_file, sep='\t')
-    
+
     cnv_df.loc[:, 'Chromosome'] = cnv_df.Chromosome.map(str)
     cnv_df.loc[np.isnan(cnv_df.Cellular_Prevalence), 'Cellular_Prevalence'] = 1
 
@@ -167,7 +168,38 @@ def main():
         dpclust_in = pd.DataFrame.from_dict(dpclust_in)
         dpclust_in = dpclust_in[dpclust_in['subclonal.CN'] > 0]
         dpclust_in.to_csv(outfile, index=False, sep='\t')
-            
+
+    elif args.output_type == 'sciclone':
+
+        chrs = df.mutation_id.map(lambda x: str(x.split('_')[0]))
+        pos = df.mutation_id.map(lambda x: int(x.split('_')[1]))
+
+        ref_reads = df.ref_counts.map(int).values
+        var_reads = df.var_counts.map(int).values
+        vafs = df.vaf.map(float).values
+
+        sciclone_vafs = {
+            'chr': chrs,
+            'pos': pos,
+            'var_reads': var_reads,
+            'ref_reads': ref_reads,
+            'vaf': vafs * 100
+        }
+
+        sciclone_vafs = pd.DataFrame.from_dict(sciclone_vafs)
+        sciclone_vafs.to_csv(outfile, index=False, sep='\t')
+
+        cns = titan.gtype.str.split(',').map(lambda x: float(x[0]) + float(x[1])).map(int).values
+        sciclone_cns = {
+            'chr': titan['chr'].values,
+            'start': titan['startpos'].map(int).values,
+            'stop': titan['endpos'].map(int).values,
+            'segment_mean': cns
+        }
+
+        outfile = '%s_cns.txt' % os.path.splitext(outfile)[0]
+        sciclone_cns = pd.DataFrame.from_dict(sciclone_cns)
+        sciclone_cns.to_csv(outfile, index=False, sep='\t')
 
 if __name__ == '__main__':
     main()
