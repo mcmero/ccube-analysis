@@ -46,6 +46,17 @@ def estimate_mult(ui):
     mult = round(ui) if ui >= 1 else 1
     return mult
 
+def calculate_average_cn(gtype):
+    if '|' in gtype:
+        # subclonal cnopy-number
+        cn_raw = [cn.split(',') for cn in gtype.split('|')]
+        cns = [float(gt[0]) + float(gt[1]) * float(gt[2]) for gt in cn_raw]
+        return sum(cns)
+    else:
+        cn_raw = gtype.split(',')
+        cns = float(cn_raw[0]) + float(cn_raw[1])
+        return cns
+
 # from SVclone/load_data.py
 def load_titan(titan_file):
     cnv_df = pd.read_csv(titan_file, sep='\t')
@@ -78,6 +89,7 @@ def load_titan(titan_file):
 
     cnv_df.loc[:, 'gtype'] = gtypes
     cnv_df = cnv_df.rename(columns={'Chromosome': 'chr', 'Start': 'startpos', 'End': 'endpos'})
+    cnv_df = cnv_df.rename(columns={'Start_Position.bp.': 'startpos', 'End_Position.bp.': 'endpos'}) # alternate names
     select_cols = ['chr', 'startpos', 'endpos', 'gtype']
     return cnv_df[select_cols]
 
@@ -189,7 +201,7 @@ def main():
         sciclone_vafs = pd.DataFrame.from_dict(sciclone_vafs)
         sciclone_vafs.to_csv(outfile, index=False, sep='\t')
 
-        cns = titan.gtype.str.split(',').map(lambda x: float(x[0]) + float(x[1])).map(int).values
+        cns = titan.gtype.apply(calculate_average_cn)
         sciclone_cns = {
             'chr': titan['chr'].values,
             'start': titan['startpos'].map(int).values,
@@ -200,6 +212,12 @@ def main():
         outfile = '%s_cns.txt' % os.path.splitext(outfile)[0]
         sciclone_cns = pd.DataFrame.from_dict(sciclone_cns)
         sciclone_cns.to_csv(outfile, index=False, sep='\t')
+
+        cnv_df = pd.read_csv(titan_infile, sep='\t')
+        loh = cnv_df[cnv_df.Corrected_Call == 'HETD']
+        outfile = '%s_loh.bed' % os.path.splitext(outfile)[0]
+        loh.to_csv(outfile, index=False, sep='\t', columns=['Chromosome', 'Start_Position.bp.', 'End_Position.bp.'], header=False)
+
 
 if __name__ == '__main__':
     main()
