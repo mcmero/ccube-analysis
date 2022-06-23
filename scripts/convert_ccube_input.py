@@ -209,14 +209,23 @@ def main():
             'segment_mean': cns
         }
 
-        outfile = '%s_cns.txt' % os.path.splitext(outfile)[0]
+        outfile = '%s_cns.txt' % os.path.splitext(args.outfile)[0]
         sciclone_cns = pd.DataFrame.from_dict(sciclone_cns)
         sciclone_cns.to_csv(outfile, index=False, sep='\t')
 
         cnv_df = pd.read_csv(titan_infile, sep='\t')
         loh = cnv_df[cnv_df.Corrected_Call == 'HETD']
-        outfile = '%s_loh.bed' % os.path.splitext(outfile)[0]
-        loh.to_csv(outfile, index=False, sep='\t', columns=['Chromosome', 'Start_Position.bp.', 'End_Position.bp.'], header=False)
+        outfile = '%s_loh.bed' % os.path.splitext(args.outfile)[0]
+
+        if 'Start_Position.bp.' in loh.columns:
+            select_columns = ['Chromosome', 'Start_Position.bp.', 'End_Position.bp.']
+        elif 'Start' in loh.columns:
+            select_columns = ['Chromosome', 'Start', 'End']
+        else:
+            print('ERROR: Invalid copy-number file', file=sys.stderr)
+            sys.exit()
+
+        loh.to_csv(outfile, index=False, sep='\t', columns=select_columns, header=False)
 
 
 if __name__ == '__main__':
