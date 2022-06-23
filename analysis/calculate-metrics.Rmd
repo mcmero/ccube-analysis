@@ -274,12 +274,16 @@ for (replicate in replicates) {
         x <- rbind(x, calc_metrics_3clus(mix_rep_run_dpc, mix, 'dpclust', type='pyc'))
         
         # sciclone -- need to count the number of clusters differently due to its output
-        tmp <- sci_data[sci_data$replicate %in% replicate & sci_data$mix %in% mix,] %>%
-                filter(!is.na(cluster)) %>%
-                group_by(cluster) %>%
-                summarise(nclus = length(unique(cluster)))
-
-        clus_num_error <- 3 - tmp$nclus
+        # below counts the number of clusters, removing low freq clusters and NAs
+        nclus <- sci_data[sci_data$replicate %in% replicate & sci_data$mix %in% mix,] %>%
+                    filter(!is.na(cluster)) %>%
+                    group_by(cluster) %>%
+                    dplyr::count() %>%
+                    mutate(prop = n / sum(n)) %>%
+                    filter(prop > clus_filter_min) %>%
+                    nrow()
+        
+        clus_num_error <- 3 - nclus
         x <- rbind(x, data.frame(mix, mean_mult_error=NA, mean_ccf_error=NA, clus_num_error,
                                  is_subclonal_sensitivity=NA, is_subclonal_specificity=NA,
                                  clus_ccf_error=NA, method='sciclone'))
