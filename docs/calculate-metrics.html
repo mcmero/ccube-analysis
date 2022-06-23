@@ -390,7 +390,7 @@ class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
 <div class="tab-content">
 <div id="summary" class="tab-pane fade in active">
 <p>
-<strong>Last updated:</strong> 2022-06-08
+<strong>Last updated:</strong> 2022-06-23
 </p>
 <p>
 <strong>Checks:</strong> <span
@@ -521,15 +521,15 @@ project makes it easier to run your code on other machines.</p>
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommcmeroccubeanalysistree3d52ffa623fd4fc516821a976e31655367ef18d9targetblank3d52ffaa">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommcmeroccubeanalysistree4d004aa0ea2f9e74a862c83197401ebcb2601d67targetblank4d004aaa">
 <span class="glyphicon glyphicon-ok text-success"
 aria-hidden="true"></span> <strong>Repository version:</strong>
-<a href="https://github.com/mcmero/ccube-analysis/tree/3d52ffa623fd4fc516821a976e31655367ef18d9" target="_blank">3d52ffa</a>
+<a href="https://github.com/mcmero/ccube-analysis/tree/4d004aa0ea2f9e74a862c83197401ebcb2601d67" target="_blank">4d004aa</a>
 </a>
 </p>
 </div>
 <div
-id="strongRepositoryversionstrongahrefhttpsgithubcommcmeroccubeanalysistree3d52ffa623fd4fc516821a976e31655367ef18d9targetblank3d52ffaa"
+id="strongRepositoryversionstrongahrefhttpsgithubcommcmeroccubeanalysistree4d004aa0ea2f9e74a862c83197401ebcb2601d67targetblank4d004aaa"
 class="panel-collapse collapse">
 <div class="panel-body">
 <p>
@@ -539,7 +539,7 @@ reproducibility.
 </p>
 <p>
 The results in this page were generated with repository version
-<a href="https://github.com/mcmero/ccube-analysis/tree/3d52ffa623fd4fc516821a976e31655367ef18d9" target="_blank">3d52ffa</a>.
+<a href="https://github.com/mcmero/ccube-analysis/tree/4d004aa0ea2f9e74a862c83197401ebcb2601d67" target="_blank">4d004aa</a>.
 See the <em>Past versions</em> tab to see a history of the changes made
 to the R Markdown and HTML files.
 </p>
@@ -562,15 +562,21 @@ Ignored files:
 Untracked files:
     Untracked:  ._.DS_Store
     Untracked:  ._calculate-metrics.html
+    Untracked:  ._clusters1.1d.pdf
+    Untracked:  ._clusters2.txt
     Untracked:  analysis/._calculate-metrics.Rmd
+    Untracked:  clusters1.1d.pdf
+    Untracked:  clusters1.txt
+    Untracked:  clusters2.txt
     Untracked:  data/
     Untracked:  scripts/._ccube_input_to_dpclust.py
     Untracked:  scripts/._convert_ccube_input.py
     Untracked:  scripts/.ccube_input_to_pyclone.py.swp
+    Untracked:  scripts/.convert_ccube_input.py.swo
     Untracked:  scripts/.convert_ccube_input.py.swp
     Untracked:  scripts/.smbdeleteAAA493322b4b
 
-Staged changes:
+Unstaged changes:
     Modified:   scripts/convert_ccube_input.py
 
 </code></pre>
@@ -617,6 +623,40 @@ Message
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mcmero/ccube-analysis/blob/4d004aa0ea2f9e74a862c83197401ebcb2601d67/analysis/calculate-metrics.Rmd" target="_blank">4d004aa</a>
+</td>
+<td>
+Marek Cmero
+</td>
+<td>
+2022-06-23
+</td>
+<td>
+Added sciclone runs
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/mcmero/ccube-analysis/21330ea74d1f1331191ca121eabf4a34ed73c6fd/docs/calculate-metrics.html" target="_blank">21330ea</a>
+</td>
+<td>
+Marek Cmero
+</td>
+<td>
+2022-06-08
+</td>
+<td>
+Build site.
+</td>
+</tr>
 <tr>
 <td>
 html
@@ -749,7 +789,8 @@ wd_truth &lt;- here::here(&#39;data&#39;, &#39;001_truth/&#39;)
 snv_folder &lt;- here::here(&#39;data&#39;, &#39;ccube&#39;)
 pyc_folder &lt;- here::here(&#39;data&#39;, &#39;pyclone&#39;)
 pvi_folder &lt;- here::here(&#39;data&#39;, &#39;pyclone-vi&#39;)
-dpc_folder &lt;- here::here(&#39;data&#39;, &#39;dpclust&#39;)</code></pre>
+dpc_folder &lt;- here::here(&#39;data&#39;, &#39;dpclust&#39;)
+sci_folder &lt;- here::here(&#39;data&#39;, &#39;sciclone&#39;)</code></pre>
 <pre class="r"><code># load ccube data
 snv_data &lt;- NULL
 replicates &lt;- list.files(snv_folder, pattern=&#39;[0-9]{4}_[0-9]{4}&#39;)
@@ -915,6 +956,25 @@ for(replicate in replicates) {
         dpc[dpc$cluster_ccf &gt; 2, &#39;cluster_ccf&#39;] &lt;- 2
         dpc_data &lt;- rbind(dpc_data, dpc)
     }
+}
+
+# load sciclone data
+sci_data &lt;- NULL
+for(replicate in replicates) {
+    for(i in seq(0.1, 0.9, 0.1)) {
+        mix &lt;- paste(i, 1-i, sep=&#39;-&#39;)
+        basename &lt;- paste(&#39;001bM&#39;, i, &#39;001gM&#39;, 1-i, sep=&#39;_&#39;)
+        results_folder &lt;- file.path(sci_folder, replicate, basename)
+
+        clusters_file &lt;- file.path(results_folder, &#39;clusters.txt&#39;)
+        clusters &lt;- read.delim(clusters_file)
+        colnames(clusters) &lt;- colnames(clusters) %&gt;% gsub(basename, &#39;&#39;, .)
+        clusters$mix &lt;- mix
+        clusters$replicate &lt;- replicate
+        clusters &lt;- clusters[,!colnames(clusters) %like% &#39;cluster.prob&#39;]
+
+        sci_data &lt;- rbind(sci_data, clusters)
+    }
 }</code></pre>
 <pre class="r"><code>metrics &lt;- NULL
 for (replicate in replicates) {
@@ -935,6 +995,17 @@ for (replicate in replicates) {
         
         mix_rep_run_dpc &lt;- dpc_data[dpc_data$mix%in%mix &amp; dpc_data$replicate%in%replicate, ]
         x &lt;- rbind(x, calc_metrics_3clus(mix_rep_run_dpc, mix, &#39;dpclust&#39;, type=&#39;pyc&#39;))
+        
+        # sciclone -- need to count the number of clusters differently due to its output
+        tmp &lt;- sci_data[sci_data$replicate %in% replicate &amp; sci_data$mix %in% mix,] %&gt;%
+                filter(!is.na(cluster)) %&gt;%
+                group_by(cluster) %&gt;%
+                summarise(nclus = length(unique(cluster)))
+
+        clus_num_error &lt;- 3 - tmp$nclus
+        x &lt;- rbind(x, data.frame(mix, mean_mult_error=NA, mean_ccf_error=NA, clus_num_error,
+                                 is_subclonal_sensitivity=NA, is_subclonal_specificity=NA,
+                                 clus_ccf_error=NA, method=&#39;sciclone&#39;))
         
         x$replicate &lt;- replicate
         metrics &lt;- rbind(metrics, x)
@@ -1021,6 +1092,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/mcmero/ccube-analysis/blob/21330ea74d1f1331191ca121eabf4a34ed73c6fd/docs/figure/calculate-metrics.Rmd/plot_metrics-1.png" target="_blank">21330ea</a>
+</td>
+<td>
+Marek Cmero
+</td>
+<td>
+2022-06-08
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/mcmero/ccube-analysis/blob/3d52ffa623fd4fc516821a976e31655367ef18d9/docs/figure/calculate-metrics.Rmd/plot_metrics-1.png" target="_blank">3d52ffa</a>
 </td>
 <td>
@@ -1062,7 +1144,9 @@ Marek Cmero
 <pre class="r"><code>pstats &lt;- rbind(collate_performance_stats(snv_folder, &#39;ccube&#39;),
                 collate_performance_stats(pyc_folder, &#39;pyclone&#39;),
                 collate_performance_stats(pvi_folder, &#39;pyclone-vi&#39;),
-                collate_performance_stats(dpc_folder, &#39;dpclust&#39;))
+                collate_performance_stats(dpc_folder, &#39;dpclust&#39;),
+                collate_performance_stats(sci_folder, &#39;sciclone&#39;))
+
 pstats$id &lt;- paste(pstats$method, pstats$replicate)
 pstats$seconds &lt;- as.numeric(pstats$seconds)
 pstats$mem &lt;- as.numeric(pstats$mem)
@@ -1095,6 +1179,17 @@ Date
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<a href="https://github.com/mcmero/ccube-analysis/blob/21330ea74d1f1331191ca121eabf4a34ed73c6fd/docs/figure/calculate-metrics.Rmd/unnamed-chunk-1-1.png" target="_blank">21330ea</a>
+</td>
+<td>
+Marek Cmero
+</td>
+<td>
+2022-06-08
+</td>
+</tr>
 <tr>
 <td>
 <a href="https://github.com/mcmero/ccube-analysis/blob/3d52ffa623fd4fc516821a976e31655367ef18d9/docs/figure/calculate-metrics.Rmd/unnamed-chunk-1-1.png" target="_blank">3d52ffa</a>
@@ -1162,6 +1257,17 @@ Date
 <tbody>
 <tr>
 <td>
+<a href="https://github.com/mcmero/ccube-analysis/blob/21330ea74d1f1331191ca121eabf4a34ed73c6fd/docs/figure/calculate-metrics.Rmd/unnamed-chunk-1-2.png" target="_blank">21330ea</a>
+</td>
+<td>
+Marek Cmero
+</td>
+<td>
+2022-06-08
+</td>
+</tr>
+<tr>
+<td>
 <a href="https://github.com/mcmero/ccube-analysis/blob/3d52ffa623fd4fc516821a976e31655367ef18d9/docs/figure/calculate-metrics.Rmd/unnamed-chunk-1-2.png" target="_blank">3d52ffa</a>
 </td>
 <td>
@@ -1227,34 +1333,35 @@ attached base packages:
 [8] methods   base     
 
 other attached packages:
- [1] RColorBrewer_1.1-2   gtools_3.9.2         GenomicRanges_1.42.0
+ [1] RColorBrewer_1.1-3   gtools_3.9.2         GenomicRanges_1.42.0
  [4] GenomeInfoDb_1.26.7  IRanges_2.24.1       S4Vectors_0.28.1    
  [7] BiocGenerics_0.36.1  plyr_1.8.6           gridExtra_2.3       
 [10] here_1.0.1           yaml_2.2.1           ccube_1.0           
 [13] foreach_1.5.1        dplyr_1.0.7          data.table_1.14.0   
-[16] ggplot2_3.3.5        workflowr_1.6.2     
+[16] ggplot2_3.3.6        workflowr_1.6.2     
 
 loaded via a namespace (and not attached):
  [1] Rcpp_1.0.7             assertthat_0.2.1       rprojroot_2.0.2       
- [4] digest_0.6.27          utf8_1.2.2             R6_2.5.1              
+ [4] digest_0.6.29          utf8_1.2.2             R6_2.5.1              
  [7] pracma_2.3.3           evaluate_0.14          highr_0.9             
-[10] pillar_1.6.4           zlibbioc_1.36.0        rlang_0.4.12          
-[13] whisker_0.4            jquerylib_0.1.4        rmarkdown_2.11        
-[16] labeling_0.4.2         stringr_1.4.0          RCurl_1.98-1.3        
-[19] munsell_0.5.0          compiler_4.0.5         httpuv_1.6.3          
-[22] xfun_0.22              pkgconfig_2.0.3        htmltools_0.5.2       
-[25] tidyselect_1.1.1       tibble_3.1.5           GenomeInfoDbData_1.2.4
-[28] codetools_0.2-18       fansi_0.5.0            crayon_1.4.2          
-[31] withr_2.4.2            later_1.3.0            bitops_1.0-7          
-[34] grid_4.0.5             jsonlite_1.7.2         gtable_0.3.0          
-[37] lifecycle_1.0.1        DBI_1.1.1              git2r_0.28.0          
-[40] magrittr_2.0.1         scales_1.1.1           stringi_1.7.5         
-[43] farver_2.1.0           reshape2_1.4.4         XVector_0.30.0        
-[46] fs_1.5.0               promises_1.2.0.1       bslib_0.3.0           
-[49] ellipsis_0.3.2         generics_0.1.1         vctrs_0.3.8           
-[52] iterators_1.0.13       tools_4.0.5            glue_1.4.2            
-[55] purrr_0.3.4            fastmap_1.1.0          colorspace_2.0-0      
-[58] knitr_1.33             sass_0.4.0            </code></pre>
+[10] pillar_1.7.0           zlibbioc_1.36.0        rlang_1.0.2           
+[13] rstudioapi_0.13        whisker_0.4            jquerylib_0.1.4       
+[16] rmarkdown_2.11         labeling_0.4.2         stringr_1.4.0         
+[19] RCurl_1.98-1.3         munsell_0.5.0          compiler_4.0.5        
+[22] httpuv_1.6.3           xfun_0.22              pkgconfig_2.0.3       
+[25] htmltools_0.5.2        tidyselect_1.1.1       tibble_3.1.7          
+[28] GenomeInfoDbData_1.2.4 codetools_0.2-18       fansi_1.0.3           
+[31] crayon_1.5.1           withr_2.5.0            later_1.3.0           
+[34] bitops_1.0-7           grid_4.0.5             jsonlite_1.7.2        
+[37] gtable_0.3.0           lifecycle_1.0.1        DBI_1.1.1             
+[40] git2r_0.28.0           magrittr_2.0.3         scales_1.2.0          
+[43] cli_3.3.0              stringi_1.7.5          farver_2.1.0          
+[46] reshape2_1.4.4         XVector_0.30.0         fs_1.5.0              
+[49] promises_1.2.0.1       bslib_0.3.0            ellipsis_0.3.2        
+[52] generics_0.1.1         vctrs_0.4.1            iterators_1.0.13      
+[55] tools_4.0.5            glue_1.6.2             purrr_0.3.4           
+[58] fastmap_1.1.0          colorspace_2.0-3       knitr_1.33            
+[61] sass_0.4.0            </code></pre>
 </div>
 </div>
 
